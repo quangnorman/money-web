@@ -5,7 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Đồng hồ và số tiền tăng mỗi ngày</title>
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
@@ -39,7 +41,8 @@
       line-height: 1.6;
     }
 
-    .clock-box, .money-box {
+    .clock-box,
+    .money-box {
       background: #f9fafb;
       border: 1px solid #e5e7eb;
       border-radius: 20px;
@@ -95,10 +98,9 @@
       background: #f3f4f6;
     }
 
-    .footer {
-      margin-top: 18px;
-      font-size: 14px;
-      color: #6b7280;
+    .today-row {
+      background: #eefbf3;
+      font-weight: 700;
     }
   </style>
 </head>
@@ -106,7 +108,7 @@
   <div class="card">
     <h1>Số tiền tui nợ Uynnn</h1>
     <p class="subtitle">
-      Nợ gốc là <strong>10.000 VNĐ</strong>. lãi <strong>5%</strong> so với ngày trước đó.
+      Nợ gốc là <strong>10.000 VNĐ</strong>. Lãi <strong>5%</strong> so với ngày trước đó.
     </p>
 
     <div class="clock-box">
@@ -118,7 +120,7 @@
     <div class="money-box">
       <div class="label">Số tiền hôm nay</div>
       <div class="money" id="money">10.000 VNĐ</div>
-      <div class="note" id="dayInfo">23-04-2026 là ngày 1 kể từ ngày bắt đầu.</div>
+      <div class="note" id="dayInfo">23-04-2026 là ngày bắt đầu.</div>
     </div>
 
     <table>
@@ -130,14 +132,15 @@
       </thead>
       <tbody id="tableBody"></tbody>
     </table>
-
-
   </div>
 
   <script>
     const baseAmount = 10000;
     const growthRate = 0.05;
-    const START_DATE_KEY = 'money_start_date_v1';
+
+    // Ngày bắt đầu cố định: 23-04-2026
+    // Lưu ý: JavaScript đếm tháng từ 0, nên 3 = tháng 4
+    const fixedStartDate = new Date(2026, 3, 23);
 
     function formatCurrency(amount) {
       return new Intl.NumberFormat('vi-VN').format(Math.round(amount)) + ' VNĐ';
@@ -152,25 +155,26 @@
       }).format(date);
     }
 
-    function formatDateKey(date) {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
+    function formatShortDate(date) {
       const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    }
-
-    function getOrCreateStartDate() {
-      let stored = localStorage.getItem(START_DATE_KEY);
-      if (!stored) {
-        stored = formatDateKey(new Date());
-        localStorage.setItem(START_DATE_KEY, stored);
-      }
-      return new Date(stored + 'T00:00:00');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}-${month}-${year}`;
     }
 
     function getDaysPassed(startDate, currentDate) {
-      const start = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-      const current = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+      const start = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate()
+      );
+
+      const current = new Date(
+        currentDate.getFullYear(),
+        currentDate.getMonth(),
+        currentDate.getDate()
+      );
+
       const diffMs = current - start;
       const oneDay = 24 * 60 * 60 * 1000;
       return Math.floor(diffMs / oneDay);
@@ -178,34 +182,44 @@
 
     function updateClockAndMoney() {
       const now = new Date();
-      const startDate = getOrCreateStartDate();
-      const daysPassed = getDaysPassed(startDate, now);
+
+      // Nếu chưa tới 23-04-2026 thì vẫn giữ ở ngày 1
+      const daysPassed = Math.max(0, getDaysPassed(fixedStartDate, now));
       const dayNumber = daysPassed + 1;
       const todayAmount = baseAmount * Math.pow(1 + growthRate, daysPassed);
 
-      const timeText = now.toLocaleTimeString('vi-VN');
-      document.getElementById('clock').textContent = timeText;
+      document.getElementById('clock').textContent = now.toLocaleTimeString('vi-VN');
       document.getElementById('date').textContent = formatDateDisplay(now);
       document.getElementById('money').textContent = formatCurrency(todayAmount);
-      document.getElementById('dayInfo').textContent = `Hôm nay là ngày ${dayNumber} kể từ ngày bắt đầu.`;
+      document.getElementById('dayInfo').innerHTML =
+        `<strong>23-04-2026</strong> là ngày bắt đầu. Hôm nay là ngày <strong>${dayNumber}</strong>.`;
 
-      renderTable(startDate, 15);
+      renderTable(15, daysPassed);
     }
 
-    function renderTable(startDate, totalDays) {
+    function renderTable(totalDays, todayIndex) {
       const tbody = document.getElementById('tableBody');
       tbody.innerHTML = '';
 
       for (let i = 0; i < totalDays; i++) {
         const amount = baseAmount * Math.pow(1 + growthRate, i);
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + i);
+        const date = new Date(fixedStartDate);
+        date.setDate(fixedStartDate.getDate() + i);
 
         const tr = document.createElement('tr');
+
+        if (i === todayIndex) {
+          tr.classList.add('today-row');
+        }
+
         tr.innerHTML = `
-          <td>Ngày ${i + 1} (${date.toLocaleDateString('vi-VN')})</td>
+          <td>
+            Ngày ${i + 1} (${formatShortDate(date)})
+            ${i === todayIndex ? ' - Hôm nay' : ''}
+          </td>
           <td>${formatCurrency(amount)}</td>
         `;
+
         tbody.appendChild(tr);
       }
     }
